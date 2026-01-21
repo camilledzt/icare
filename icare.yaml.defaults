@@ -298,6 +298,7 @@ server:
     iam_oauth2_key:
     iam_oauth2_secret:
     iam_oauth2_timeout: 15
+    username_is_full_email: False
 
 services:
   dask: False

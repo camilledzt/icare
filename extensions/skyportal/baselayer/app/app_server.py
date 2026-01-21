@@ -11,7 +11,6 @@ from .handlers import (
     SocketAuthTokenHandler,
 )
 
-
 env, cfg = load_env()
 
 
@@ -23,14 +22,14 @@ settings = {
     "SOCIAL_AUTH_USER_MODEL": "baselayer.app.models.User",
     "SOCIAL_AUTH_STORAGE": "baselayer.app.psa.TornadoStorage",
     "SOCIAL_AUTH_STRATEGY": "baselayer.app.psa.TornadoStrategy",
-    "SOCIAL_AUTH_AUTHENTICATION_BACKENDS": (
-        "baselayer.app.auth.IAMOAuth2.IAMOAuth2",
-    ),
+    "SOCIAL_AUTH_AUTHENTICATION_BACKENDS": ("baselayer.app.auth.IAMOAuth2.IAMOAuth2",),
     "SOCIAL_AUTH_LOGIN_URL": "/",
     "SOCIAL_AUTH_LOGIN_REDIRECT_URL": "/",  # on success
     "SOCIAL_AUTH_LOGIN_ERROR_URL": "/login-error/",
     "SOCIAL_AUTH_USER_FIELDS": ["username"],
-    "SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL": True,
+    "SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL": cfg.get(
+        "server.auth.username_is_full_email", True
+    ),
     "SOCIAL_AUTH_SESSION_EXPIRATION": True,
     "SOCIAL_AUTH_IAM_OAUTH2_KEY": cfg["server.auth.iam_oauth2_key"],
     "SOCIAL_AUTH_IAM_OAUTH2_SECRET": cfg["server.auth.iam_oauth2_secret"],
