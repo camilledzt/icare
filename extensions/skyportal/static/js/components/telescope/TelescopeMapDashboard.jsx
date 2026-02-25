@@ -1,19 +1,28 @@
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useState } from "react";
+import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
 import Paper from "@mui/material/Paper";
 import CircularProgress from "@mui/material/CircularProgress";
-import { Tooltip } from "@mui/material";
+import { Tooltip, IconButton } from "@mui/material";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import ReplayIcon from "@mui/icons-material/Replay";
 
 // lazy import the TelescopeMap component
 const TelescopeMap = lazy(() => import("./TelescopeMap"));
 
 const useStyles = makeStyles((theme) => ({
-  help: {
+  mapContainer: {
+    position: "relative",
+    width: "100%",
+  },
+  overlayButtons: {
+    position: "absolute",
+    bottom: "0.3rem",
+    right: "0.3rem",
     display: "flex",
-    justifyContent: "right",
     alignItems: "center",
+    gap: "0.2rem",
   },
   tooltip: {
     maxWidth: "60rem",
@@ -47,10 +56,11 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const TelescopeMapDashboard = () => {
+const TelescopeMapDashboard = ({ classes: parentClasses }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const [mapKey, setMapKey] = useState(0);
 
   const Title = () => (
     <div className={classes.tooltipContent}>
@@ -75,7 +85,7 @@ const TelescopeMapDashboard = () => {
       placement="bottom-end"
       classes={{ tooltip: classes.tooltip }}
     >
-      <HelpOutlineOutlinedIcon />
+      <HelpOutlineOutlinedIcon color="action" />
     </Tooltip>
   );
 
@@ -87,14 +97,30 @@ const TelescopeMapDashboard = () => {
         </div>
       }
     >
-      <Paper>
-        <TelescopeMap telescopes={telescopeList} />
-        <div className={classes.help}>
-          <TelescopeToolTip />
+      <Paper elevation={1} className={parentClasses.widgetPaperFillSpace}>
+        <div className={parentClasses.widgetPaperDiv}>
+          <div className={classes.mapContainer}>
+            <TelescopeMap key={mapKey} telescopes={telescopeList} />
+            <div className={classes.overlayButtons}>
+              <Tooltip title="Reset view" placement="top">
+                <IconButton size="small" onClick={() => setMapKey((k) => k + 1)}>
+                  <ReplayIcon color="action" fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <TelescopeToolTip />
+            </div>
+          </div>
         </div>
       </Paper>
     </Suspense>
   );
+};
+
+TelescopeMapDashboard.propTypes = {
+  classes: PropTypes.shape({
+    widgetPaperDiv: PropTypes.string.isRequired,
+    widgetPaperFillSpace: PropTypes.string.isRequired,
+  }).isRequired,
 };
 
 export default TelescopeMapDashboard;
