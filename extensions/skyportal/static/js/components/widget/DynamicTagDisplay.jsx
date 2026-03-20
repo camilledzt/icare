@@ -372,7 +372,7 @@ DynamicTagDisplay.propTypes = {
     stop: PropTypes.string,
   }).isRequired,
   displayTags: PropTypes.bool.isRequired,
-  taxonomyList: PropTypes.arrayOf(
+    taxonomyList: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number.isRequired,
       name: PropTypes.string.isRequired,

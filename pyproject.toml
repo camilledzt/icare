@@ -1,0 +1,29 @@
+[project]
+name = 'icare'
+version = '0.1.0'
+requires-python = '>=3.12'
+dependencies = [
+    "fire>=0.3.1",
+    "setuptools<76.1.0",
+    "jinja2<3.2.0",
+    "tomli-w>=1.2.0",
+    "packaging>=24.0",
+    "pyyaml"
+]
+
+[dependency-groups]
+docs = [
+    "mkdocs",
+    "jinja2",
+    "mkdocstrings",
+    "mkdocs-material",
+]
+ext = [
+    "fink-client>=10.0",
+    "fink-filters>=7.26",
+    "fink-science>=3.13.3",
+    "fink-utils>=0.56.0",
+    "pyspark==3.2.1",
+    "astroscrappy",
+    "stdpipe==0.1",
+]

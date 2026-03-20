@@ -79,7 +79,7 @@ if __name__ == "__main__":
         import fire
     except ImportError:
         print("\nThis tool depends on `fire`.  Please install it using:")
-        print("\n  pip install fire")
+        print("\n  uv sync")
         sys.exit(-1)
 
     # Monkey-patch away fire's paging

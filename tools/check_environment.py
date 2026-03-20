@@ -1,10 +1,11 @@
 #!/usr/bin/env python
-from distutils.version import LooseVersion as Version
-import subprocess
+import importlib.metadata
 import pathlib
-import pkg_resources
-import re
+import subprocess
 import sys
+
+from packaging.requirements import Requirement
+from packaging.version import Version
 
 from .status import status
 
@@ -30,22 +31,14 @@ system_dependencies = {
 
 def get_python_requirements(
     requirements_path: pathlib.Path = pathlib.Path(__file__).parent.parent.absolute(),
-    requirements_file_name: str = "requirements.txt",
-    requirements: list = [],
 ):
-    """Recursively get python requirements from requirements.txt-like files"""
-    with open(requirements_path / requirements_file_name) as requirements_file:
-        requirements_from_file = requirements_file.read().splitlines()
-    for requirement in requirements_from_file:
-        if requirement.startswith("-r"):
-            get_python_requirements(
-                requirements_path=requirements_path,
-                requirements_file_name=requirement.split()[1],
-            )
-        else:
-            requirements.append(requirement)
+    """Get python requirements from pyproject.toml"""
+    import tomllib
 
-    return list(set(requirements))
+    with open(requirements_path / "pyproject.toml", "rb") as f:
+        data = tomllib.load(f)
+
+    return data.get("project", {}).get("dependencies", [])
 
 
 def dependencies_ok(check_python_requirements: bool = True):
@@ -57,7 +50,7 @@ def dependencies_ok(check_python_requirements: bool = True):
         try:
             query = f"{dep} >= {min_version}"
             with status(query):
-                success, out = output(cmd)
+                _, out = output(cmd)
                 try:
                     version = get_version(out.decode("utf-8").strip())
                     print(f"[{version.rjust(8)}]".rjust(40 - len(query)), end="")
@@ -69,7 +62,7 @@ def dependencies_ok(check_python_requirements: bool = True):
         except ValueError:
             print(
                 f"\n[!] Sorry, but our script could not parse the output of "
-                f'`{" ".join(cmd)}`; please file a bug, or see '
+                f"`{' '.join(cmd)}`; please file a bug, or see "
                 f"`check_app_environment.py`\n"
             )
             raise
@@ -82,12 +75,12 @@ def dependencies_ok(check_python_requirements: bool = True):
         print()
         print("    The failed checks were:")
         print()
-        for (pkg, exc) in unsatisfied_system_dependencies:
+        for pkg, exc in unsatisfied_system_dependencies:
             cmd, get_version, min_version = system_dependencies[pkg]
-            print(f'    - {pkg}: `{" ".join(cmd)}`')
+            print(f"    - {pkg}: `{' '.join(cmd)}`")
             print("     ", exc)
         print()
-        print("    Please refer to blablabla " "for installation instructions.")
+        print("    Please refer to blablabla for installation instructions.")
         print()
 
     unsatisfied_python_requirements = []
@@ -97,12 +90,16 @@ def dependencies_ok(check_python_requirements: bool = True):
         for requirement in get_python_requirements():
             try:
                 with status(requirement):
-                    pkg_resources.require(requirement)
-            except (
-                pkg_resources.DistributionNotFound,
-                pkg_resources.VersionConflict,
-            ) as e:
-                unsatisfied_python_requirements.append(e.report())
+                    req = Requirement(requirement)
+                    version = importlib.metadata.version(req.name)
+                    if req.specifier and not req.specifier.contains(version):
+                        raise RuntimeError(
+                            f"{req.name} {version} does not satisfy {req.specifier}"
+                        )
+            except importlib.metadata.PackageNotFoundError:
+                unsatisfied_python_requirements.append(f"{requirement}: not found")
+            except RuntimeError as e:
+                unsatisfied_python_requirements.append(str(e))
 
         if unsatisfied_python_requirements:
             print()
@@ -113,7 +110,7 @@ def dependencies_ok(check_python_requirements: bool = True):
             for requirement in unsatisfied_python_requirements:
                 print(requirement)
             print()
-            print("    Please refer to blablabla " "for installation instructions.")
+            print("    Please refer to blablabla for installation instructions.")
             print()
 
     if unsatisfied_system_dependencies:
@@ -126,16 +123,8 @@ def dependencies_ok(check_python_requirements: bool = True):
         ).lower()
         if attempt_resolving in ("y", "yes", "yup", "yea", "yeah"):
             p = subprocess.run(
-                [
-                    "python",
-                    "-m",
-                    "pip",
-                    "install",
-                    "-r",
-                    pathlib.Path(__file__).parent.parent.absolute()
-                    / "requirements.txt",
-                ],
-                check=True,
+                ["uv", "sync"],
+                cwd=pathlib.Path(__file__).parent.parent.absolute(),
             )
             if p.returncode != 0:
                 print("\nAttempt failed.\n")

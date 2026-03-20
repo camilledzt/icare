@@ -58,7 +58,7 @@ def diff(
     # check if those files exist in extensions/skyportal/
     exist_in_extensions = []
     for file in set(changed_files):
-        if Path("extensions/skyportal/" + file).exists():
+        if Path("extensions/skyportal/" + file).is_file():
             exist_in_extensions.append(file)
 
     # if there are changes, ask the user if he wants to continue, return true or false
