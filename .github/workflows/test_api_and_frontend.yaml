@@ -43,11 +43,11 @@ jobs:
           ]
 
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: "22.x"
 
@@ -79,11 +79,10 @@ jobs:
             ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
 
-      - uses: actions/cache@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
-          path: |
-            ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+          enable-cache: true
 
       - name: Install system dependencies
         run: |
@@ -96,9 +95,6 @@ jobs:
 
           sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev nginx
 
-          pip install pip==24.0
-          pip install wheel numpy
-
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
@@ -110,9 +106,6 @@ jobs:
           echo node $(node --version)
           nginx -v
           firefox --version
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
 
       - name: Install Python dependencies
         run: |
@@ -180,7 +173,7 @@ jobs:
       - name: Verify Geckodriver / Selenium
         run: |
           geckodriver --version
-          python -c "import selenium; print(f'Selenium {selenium.__version__}')"
+          cd patched_skyportal && python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 
       - name: Patch Notifications.jsx for a longer display
         run: |
