@@ -115,6 +115,10 @@ jobs:
         run: |
           ./icare.sh build --skip_services_check
 
+      - name: Install patched SkyPortal Python dependencies
+        run: |
+          cd patched_skyportal && uv sync --group test
+
       - name: Write SkyPortal configs
         run: |
           cd skyportal
