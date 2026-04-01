@@ -43,11 +43,11 @@ jobs:
           ]
 
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: "22.x"
 
@@ -79,11 +79,10 @@ jobs:
             ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
 
-      - uses: actions/cache@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
-          path: |
-            ~/.cache/pip
-          key: ${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
+          enable-cache: true
 
       - name: Install system dependencies
         run: |
@@ -95,9 +94,6 @@ jobs:
           printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001' | sudo tee /etc/apt/preferences.d/mozilla-firefox
 
           sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev nginx
-
-          pip install pip==24.0
-          pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -113,13 +109,16 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install -r requirements.txt
-          pip install -r skyportal/requirements.txt
-          pip install -r skyportal/baselayer/requirements.txt
+          uv sync
 
       - name: Apply Icare patches
         run: |
           ./icare.sh build --skip_services_check
+
+      - name: Install patched SkyPortal Python dependencies
+        run: |
+          cd patched_skyportal && uv sync --group dev
+          echo "${{ github.workspace }}/patched_skyportal/.venv/bin" >> $GITHUB_PATH
 
       - name: Write SkyPortal configs
         run: |
@@ -176,10 +175,6 @@ jobs:
           pip list --format=columns
           npm ls --depth 0 || true
 
-      - name: Verify Geckodriver / Selenium
-        run: |
-          geckodriver --version
-          python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 
       - name: Patch Notifications.jsx for a longer display
         run: |

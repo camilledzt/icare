@@ -41,6 +41,12 @@ def update(
     if extensions_update:
         print("\n")
         for file in exists_in_extensions:
+            ext_file = Path("extensions/skyportal/" + file)
+            if ext_file.exists() and "<<<<<<< " in ext_file.read_text():
+                print(
+                    f"Skipping {file}: already has unresolved conflict markers. Please resolve conflicts first."
+                )
+                continue
             command = [
                 "git",
                 "merge-file",

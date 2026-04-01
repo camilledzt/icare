@@ -1,4 +1,0 @@
-mkdocs
-jinja2
-mkdocstrings
-mkdocs-material
