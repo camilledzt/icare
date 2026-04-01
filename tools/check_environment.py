@@ -110,7 +110,9 @@ def dependencies_ok(check_python_requirements: bool = True):
             for requirement in unsatisfied_python_requirements:
                 print(requirement)
             print()
-            print("    Please refer to blablabla for installation instructions.")
+            print(
+                "    Please refer to Icare documentation for installation instructions."
+            )
             print()
 
     if unsatisfied_system_dependencies:
