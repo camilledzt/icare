@@ -80,7 +80,7 @@ def dependencies_ok(check_python_requirements: bool = True):
             print(f"    - {pkg}: `{' '.join(cmd)}`")
             print("     ", exc)
         print()
-        print("    Please refer to blablabla for installation instructions.")
+        print("    Please refer to Icare documentation for installation instructions.")
         print()
 
     unsatisfied_python_requirements = []
