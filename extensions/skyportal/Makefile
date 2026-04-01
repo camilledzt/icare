@@ -73,7 +73,7 @@ load_seed_data: | dependencies_no_js prepare_seed_data
 load_grandma_data: ## Seed database with data from grandma collaboration
 load_grandma_data: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 load_grandma_data: | dependencies prepare_seed_data
-	@PYTHONPATH=. python tools/data_loader.py data/db_grandma.yaml $(FLAGS)
+	@$(PYTHON) tools/data_loader.py data/db_grandma.yaml $(FLAGS)
 
 db_create_tables: ## Create tables in the database
 db_create_tables: | dependencies_no_js

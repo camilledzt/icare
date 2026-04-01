@@ -117,7 +117,7 @@ jobs:
 
       - name: Install patched SkyPortal Python dependencies
         run: |
-          cd patched_skyportal && uv sync --group test
+          cd patched_skyportal && uv sync --group dev
           echo "${{ github.workspace }}/patched_skyportal/.venv/bin" >> $GITHUB_PATH
 
       - name: Write SkyPortal configs
