@@ -2,12 +2,13 @@ import io
 
 import pandas as pd
 import requests
+import sqlalchemy as sa
 from astropy.time import Time
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 from skyportal.models.obj import Obj
 
-from ...models import Instrument
+from ...models import Instrument, Photometry
 from ..base import BaseHandler
 from .photometry import add_external_photometry
 
@@ -75,7 +76,9 @@ def _resolve_fink_objects(tns_name):
     return results
 
 
-def _fetch_ztf_photometry(fink_object_id, obj_id, instrument_id, group_ids, user):
+def _fetch_ztf_photometry(
+    fink_object_id, obj_id, instrument_id, group_ids, user, session=None
+):
     """Fetch ZTF photometry from Fink and post it to SkyPortal."""
     r = requests.post(
         f"{FINK_ZTF_API}/api/v1/objects",
@@ -109,6 +112,26 @@ def _fetch_ztf_photometry(fink_object_id, obj_id, instrument_id, group_ids, user
             f"Missing expected columns in Fink ZTF response for object {fink_object_id}"
         )
 
+    mjds = [Time(float(jd), format="jd").mjd for jd in df["i:jd"]]
+
+    if session is not None:
+        existing_mjds = set(
+            session.execute(
+                sa.select(Photometry.mjd).where(
+                    Photometry.obj_id == obj_id,
+                    Photometry.instrument_id == instrument_id,
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if existing_mjds:
+            keep = [i for i, mjd in enumerate(mjds) if mjd not in existing_mjds]
+            df = df.iloc[keep].reset_index(drop=True)
+            mjds = [mjds[i] for i in keep]
+        if len(df.index) == 0:
+            return 0
+
     data = {
         "obj_id": [obj_id] * len(df),
         "ra": df["i:ra"],
@@ -117,7 +140,7 @@ def _fetch_ztf_photometry(fink_object_id, obj_id, instrument_id, group_ids, user
         "magerr": df["i:sigmapsf"],
         "limiting_mag": df["i:diffmaglim"],
         "filter": [ZTF_BANDS[int(band)] for band in df["i:fid"]],
-        "mjd": [Time(float(jd), format="jd").mjd for jd in df["i:jd"]],
+        "mjd": mjds,
         "magsys": ["ab"] * len(df),
         "instrument_id": instrument_id,
         "group_ids": group_ids,
@@ -127,7 +150,9 @@ def _fetch_ztf_photometry(fink_object_id, obj_id, instrument_id, group_ids, user
     return len(df)
 
 
-def _fetch_lsst_photometry(fink_object_id, obj_id, instrument_id, group_ids, user):
+def _fetch_lsst_photometry(
+    fink_object_id, obj_id, instrument_id, group_ids, user, session=None
+):
     """Fetch LSST photometry from Fink (flux-space, nJy, zp=31.4) and post it to SkyPortal."""
     r = requests.post(
         f"{FINK_LSST_API}/api/v1/sources",
@@ -163,6 +188,22 @@ def _fetch_lsst_photometry(fink_object_id, obj_id, instrument_id, group_ids, use
     if unknown_bands:
         raise ValueError(f"Unknown LSST band(s) in Fink response: {unknown_bands}")
 
+    if session is not None:
+        existing_mjds = set(
+            session.execute(
+                sa.select(Photometry.mjd).where(
+                    Photometry.obj_id == obj_id,
+                    Photometry.instrument_id == instrument_id,
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if existing_mjds:
+            df = df[~df["r:midpointMjdTai"].isin(existing_mjds)].reset_index(drop=True)
+        if len(df.index) == 0:
+            return 0
+
     data = {
         "obj_id": [obj_id] * len(df),
         "ra": df["r:ra"],
@@ -182,20 +223,20 @@ def _fetch_lsst_photometry(fink_object_id, obj_id, instrument_id, group_ids, use
 
 
 def _fetch_photometry_for_survey(
-    survey_name, fink_object_id, obj_id, instrument_id, group_ids, user
+    survey_name, fink_object_id, obj_id, instrument_id, group_ids, user, session=None
 ):
     """Dispatch photometry fetching to the correct survey handler. Returns row count."""
     if survey_name == "ztf":
         return (
             _fetch_ztf_photometry(
-                fink_object_id, obj_id, instrument_id, group_ids, user
+                fink_object_id, obj_id, instrument_id, group_ids, user, session
             )
             or 0
         )
     elif survey_name == "lsst":
         return (
             _fetch_lsst_photometry(
-                fink_object_id, obj_id, instrument_id, group_ids, user
+                fink_object_id, obj_id, instrument_id, group_ids, user, session
             )
             or 0
         )
@@ -260,6 +301,7 @@ class FinkPhotometryHandler(BaseHandler):
                             instrument.id,
                             group_ids,
                             self.associated_user_object,
+                            session,
                         )
                 else:
                     # No TNS resolver match (or no TNS name) — try the object ID
@@ -283,6 +325,7 @@ class FinkPhotometryHandler(BaseHandler):
                                     instrument.id,
                                     group_ids,
                                     self.associated_user_object,
+                                    session,
                                 )
                             except Exception as e:
                                 log(
