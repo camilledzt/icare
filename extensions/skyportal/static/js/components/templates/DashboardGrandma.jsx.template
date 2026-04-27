@@ -24,7 +24,7 @@ import TopSources from "../widget/TopSources";
 import RecentGcnEvents from "../widget/RecentGcnEvents";
 import SourceCounts from "../widget/SourceCounts";
 import WeatherWidget from "../widget/WeatherWidget";
-import TelescopeMapDashboard from "../widget/TelescopeMapWidget";
+import TelescopeMapWidget from "../widget/TelescopeMapWidget";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 

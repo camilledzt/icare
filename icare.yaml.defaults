@@ -225,6 +225,17 @@ app:
           permissions: ["Manage users", "System admin"]
           url: /user_management
 
+  homepage_widgets:
+    TelescopeMapWidget:
+      show: false
+      resizeable: false
+      layouts:
+        xlg: [0, 0, 0, 0]
+        lg: [0, 0, 0, 0]
+        md: [0, 0, 0, 0]
+        sm: [0, 0, 0, 0]
+        xs: [0, 0, 0, 0]
+
   dashboard_grandma_widgets:
     RecentGcnEvents:
       resizeable: true
@@ -236,7 +247,7 @@ app:
         sm: [0, 0, 6, 2]
         xs: [0, 0, 4, 3]
 
-    TelescopeMapDashboard:
+    TelescopeMapWidget:
       resizeable: true
       minW: 2
       layouts:
