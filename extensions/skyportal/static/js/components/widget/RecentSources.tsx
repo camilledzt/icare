@@ -1,6 +1,4 @@
-import React, { useEffect, useState } from "react";
-import PropTypes from "prop-types";
-import { useDispatch, useSelector } from "react-redux";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import dayjs from "dayjs";
@@ -9,7 +7,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
-import makeStyles from "@mui/styles/makeStyles";
+import { makeStyles } from "tss-react/mui";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
@@ -20,6 +18,7 @@ import InputAdornment from "@mui/material/InputAdornment";
 import DynamicTagDisplay from "./DynamicTagDisplay";
 
 import { showNotification } from "baselayer/components/Notifications";
+import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import * as profileActions from "../../ducks/profile";
 import * as objectTagsActions from "../../ducks/objectTags";
@@ -49,11 +48,13 @@ const obs_classes = [
   "GO GRANDMA (HIGH PRIORITY)",
 ];
 
-export const useSourceListStyles = makeStyles((theme) => ({
+export const useSourceListStyles = makeStyles<{
+  invertThumbnails?: boolean | undefined;
+}>()((theme, { invertThumbnails }) => ({
   stampContainer: {
     display: "contents",
   },
-  stamp: () => ({
+  stamp: {
     transition: "transform 0.1s",
     width: "6.6em",
     height: "6.6em",
@@ -63,11 +64,11 @@ export const useSourceListStyles = makeStyles((theme) => ({
       boxShadow: "0 5px 15px rgba(51, 52, 92, 0.6)",
     },
     borderRadius: "4px",
-  }),
-  inverted: ({ invertThumbnails }) => ({
+  },
+  inverted: {
     filter: invertThumbnails ? "invert(1)" : "unset",
     WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
-  }),
+  },
   sourceListContainer: {
     height: "calc(100% - 2.5rem)",
     overflowY: "auto",
@@ -154,7 +155,9 @@ export const useSourceListStyles = makeStyles((theme) => ({
     transition: "all 0.3s ease",
     "&:hover": {
       backgroundColor:
-        theme.palette.mode === "light" ? theme.palette.secondary.light : null,
+        theme.palette.mode === "light"
+          ? theme.palette.secondary.light
+          : (null as any),
     },
     marginBottom: "0.4rem",
     borderRadius: "8px",
@@ -227,54 +230,60 @@ export const useSourceListStyles = makeStyles((theme) => ({
   },
 }));
 
-const defaultPrefs = {
+const defaultPrefs: any = {
   maxNumSources: "25",
   groupIds: [],
   includeSitewideSources: false,
   displayTNS: true,
 };
 
-function containsSpecialCharacters(str) {
+function containsSpecialCharacters(str: string) {
   const regex = /[ !@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g;
   return regex.test(str);
 }
 
-const RecentSourcesSearchbar = ({ styles }) => {
-  const [inputValue, setInputValue] = useState("");
-  const [options] = useState([]);
-  const [value] = useState(null);
+interface RecentSourcesSearchbarProps {
+  styles: any;
+}
+
+const RecentSourcesSearchbar = ({ styles }: RecentSourcesSearchbarProps) => {
+  const [inputValue, setInputValue] = useState<string>("");
+  const [options] = useState<any[]>([]);
+  const [value] = useState<any>(null);
   const [loading] = useState(false);
   const [open, setOpen] = useState(false);
 
   const classes = styles;
 
-  const dispatch = useDispatch();
-  const sourcesState = useSelector((state) => state.sources.latest);
+  const dispatch = useAppDispatch();
+  const sourcesState = useAppSelector(
+    (state) => (state as any).sources.latest,
+  );
 
-  let results = [];
-  const handleChange = (e) => {
+  let results: any[] = [];
+  const handleChange = (e: any) => {
     e.preventDefault();
     const spec_char = containsSpecialCharacters(e.target.value);
     if (!spec_char) {
       setInputValue(e.target.value);
     } else {
       dispatch(showNotification("No special characters allowed", "error"));
-      setInputValue([]);
+      setInputValue("");
     }
   };
   if (inputValue.length > 0) {
-    results = sourcesState?.sources?.filter((source) =>
+    results = sourcesState?.sources?.filter((source: any) =>
       source.id.toLowerCase().match(inputValue.toLowerCase()),
     );
   }
 
-  function formatSource(source) {
+  function formatSource(source: any) {
     if (source.id) {
       source.obj_id = source.id;
     }
   }
 
-  const formattedResults = [];
+  const formattedResults: any[] = [];
   Object.assign(formattedResults, results);
 
   formattedResults.map(formatSource);
@@ -282,12 +291,13 @@ const RecentSourcesSearchbar = ({ styles }) => {
   return (
     <div>
       <Autocomplete
-        color="primary"
         id="recent-sources-search-bar"
         style={{ padding: "0.3rem" }}
         classes={{ root: classes.root, paper: classes.paper }}
-        isOptionEqualToValue={(option, val) => option.name === val.name}
-        getOptionLabel={(option) => option}
+        isOptionEqualToValue={(option: any, val: any) =>
+          option.name === val.name
+        }
+        getOptionLabel={(option: any) => option}
         onInputChange={handleChange}
         onClose={() => setOpen(false)}
         size="small"
@@ -328,17 +338,26 @@ const RecentSourcesSearchbar = ({ styles }) => {
   );
 };
 
+interface RecentSourcesListProps {
+  sources?: any[];
+  styles: any;
+  search?: boolean;
+  displayTNS?: boolean;
+}
+
 const RecentSourcesList = ({
-  sources,
+  sources = undefined,
   styles,
   search = false,
   displayTNS = true,
-}) => {
-  const [thumbnailIdxs, setThumbnailIdxs] = useState({});
-  const { taxonomyList } = useSelector((state) => state.taxonomies);
+}: RecentSourcesListProps) => {
+  const [thumbnailIdxs, setThumbnailIdxs] = useState<Record<string, number>>(
+    {},
+  );
+  const { taxonomyList } = useAppSelector((state) => state.taxonomies);
 
   useEffect(() => {
-    sources?.forEach((source) => {
+    sources?.forEach((source: any) => {
       setThumbnailIdxs((prevState) => ({
         ...prevState,
         [source.obj_id]: 0,
@@ -361,22 +380,22 @@ const RecentSourcesList = ({
   return (
     <div className={styles.sourceListContainer}>
       <ul className={styles.sourceList}>
-        {sources.map((source, idx) => {
+        {sources.map((source: any, idx: number) => {
           const recentSourceName = `${source.obj_id}`;
-          let classification = null;
+          let classification: string | null = null;
 
           if (source.classifications.length > 0) {
             // Display the most recent non-zero probability class, and that isn't a ml classifier
             // if there are no results, then consider ML classifications too
             let filteredClasses = source.classifications?.filter(
-              (i) => i.probability > 0 && i.ml === false,
+              (i: any) => i.probability > 0 && i.ml === false,
             );
             if (filteredClasses.length === 0) {
               filteredClasses = source.classifications?.filter(
-                (i) => i.probability > 0,
+                (i: any) => i.probability > 0,
               );
             }
-            const sortedClasses = filteredClasses.sort((a, b) =>
+            const sortedClasses = filteredClasses.sort((a: any, b: any) =>
               a.modified < b.modified ? 1 : -1,
             );
 
@@ -395,8 +414,8 @@ const RecentSourcesList = ({
             }
           }
 
-          const imgClasses = source.thumbnails[thumbnailIdxs[source.obj_id]]
-            ?.is_grayscale
+          const thumbIdx = thumbnailIdxs[source.obj_id] ?? 0;
+          const imgClasses = source.thumbnails[thumbIdx]?.is_grayscale
             ? `${styles.stamp} ${styles.inverted}`
             : `${styles.stamp}`;
           return (
@@ -415,23 +434,19 @@ const RecentSourcesList = ({
                     <img
                       className={imgClasses}
                       src={
-                        source.thumbnails[thumbnailIdxs[source.obj_id]]
-                          ?.public_url ||
+                        source.thumbnails[thumbIdx]?.public_url ||
                         "/static/images/currently_unavailable.png"
                       }
                       alt={source.obj_id}
                       loading="lazy"
-                      onError={(e) => {
+                      onError={(e: any) => {
                         // avoid infinite loop
-                        if (
-                          thumbnailIdxs[source.obj_id] ===
-                          source.thumbnails.length - 1
-                        ) {
+                        if (thumbIdx === source.thumbnails.length - 1) {
                           e.target.onerror = null;
                         }
                         setThumbnailIdxs((prevState) => ({
                           ...prevState,
-                          [source.obj_id]: prevState[source.obj_id] + 1,
+                          [source.obj_id]: (prevState[source.obj_id] ?? 0) + 1,
                         }));
                       }}
                     />
@@ -518,12 +533,11 @@ const RecentSourcesList = ({
                               fontWeight: "bold",
                             }}
                             onClick={() => {
+                              const tnsId = source.tns_name.trim().includes(" ")
+                                ? (source.tns_name.split(" ")[1] ?? "")
+                                : source.tns_name;
                               window.open(
-                                `https://www.wis-tns.org/object/${
-                                  source.tns_name.trim().includes(" ")
-                                    ? source.tns_name.split(" ")[1]
-                                    : source.tns_name
-                                }`,
+                                `https://www.wis-tns.org/object/${tnsId}`,
                                 "_blank",
                               );
                             }}
@@ -549,64 +563,24 @@ const RecentSourcesList = ({
   );
 };
 
-RecentSourcesList.propTypes = {
-  sources: PropTypes.arrayOf(
-    PropTypes.shape({
-      obj_id: PropTypes.string.isRequired,
-      ra: PropTypes.number,
-      dec: PropTypes.number,
-      created_at: PropTypes.string.isRequired,
-      thumbnails: PropTypes.arrayOf(
-        PropTypes.shape({
-          public_url: PropTypes.string,
-          is_grayscale: PropTypes.bool,
-          type: PropTypes.string,
-        }),
-      ),
-      resaved: PropTypes.bool,
-      classifications: PropTypes.arrayOf(
-        PropTypes.shape({
-          author_name: PropTypes.string,
-          probability: PropTypes.number,
-          modified: PropTypes.string,
-          classification: PropTypes.string,
-          id: PropTypes.number,
-          obj_id: PropTypes.string,
-          author_id: PropTypes.number,
-          taxonomy_id: PropTypes.number,
-          created_at: PropTypes.string,
-        }),
-      ),
-      tags: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number.isRequired,
-          name: PropTypes.string.isRequired,
-        }),
-      ),
-    }),
-  ),
-  styles: PropTypes.shape(Object).isRequired,
-  search: PropTypes.bool,
-  displayTNS: PropTypes.bool,
-};
+interface RecentSourcesProps {
+  classes: Record<string, string>;
+}
 
-RecentSourcesList.defaultProps = {
-  sources: undefined,
-  search: false,
-  displayTNS: true,
-};
+const RecentSources = ({ classes }: RecentSourcesProps) => {
+  const dispatch = useAppDispatch();
+  const invertThumbnails = useAppSelector(
+    (state) => state.profile.preferences?.["invertThumbnails"],
+  ) as boolean | undefined;
+  const { classes: styles } = useSourceListStyles({ invertThumbnails });
 
-const RecentSources = ({ classes }) => {
-  const dispatch = useDispatch();
-  const invertThumbnails = useSelector(
-    (state) => state.profile.preferences.invertThumbnails,
+  const { recentSources } = useAppSelector(
+    (state) => (state as any).recentSources,
   );
-  const styles = useSourceListStyles({ invertThumbnails });
-
-  const { recentSources } = useSelector((state) => state.recentSources);
   const prefs =
-    useSelector((state) => state.profile.preferences.recentSources) ||
-    defaultPrefs;
+    useAppSelector(
+      (state) => state.profile.preferences?.["recentSources"],
+    ) || defaultPrefs;
   useEffect(() => {
     dispatch(objectTagsActions.fetchTagOptions());
   }, [dispatch]);
@@ -616,14 +590,16 @@ const RecentSources = ({ classes }) => {
     : defaultPrefs;
 
   return (
-    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
-      <div className={classes.widgetPaperDiv}>
+    <Paper elevation={1} className={classes["widgetPaperFillSpace"]}>
+      <div className={classes["widgetPaperDiv"]}>
         <div>
           <Typography variant="h6" display="inline">
             Recent Sources
           </Typography>
-          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-          <div className={classes.widgetIcon}>
+          <DragHandleIcon
+            className={`${classes["widgetIcon"]} dragHandle`}
+          />
+          <div className={classes["widgetIcon"]}>
             <WidgetPrefsDialog
               initialValues={recentSourcesPrefs}
               stateBranchName="recentSources"
@@ -642,16 +618,5 @@ const RecentSources = ({ classes }) => {
   );
 };
 
-RecentSources.propTypes = {
-  classes: PropTypes.shape({
-    widgetPaperDiv: PropTypes.string.isRequired,
-    widgetIcon: PropTypes.string.isRequired,
-    widgetPaperFillSpace: PropTypes.string.isRequired,
-  }).isRequired,
-};
-
-RecentSourcesSearchbar.propTypes = {
-  styles: PropTypes.shape(Object).isRequired,
-};
-
 export default RecentSources;
+export { RecentSourcesSearchbar };

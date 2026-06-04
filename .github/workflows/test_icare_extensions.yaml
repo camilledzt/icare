@@ -1,0 +1,221 @@
+name: Icare extensions
+
+# A lean CI that only runs the icare-specific surface area:
+#   * the patched SkyPortal builds without errors
+#   * the SkyPortal app boots with the icare overlay applied
+#   * the icare-specific frontend test (extensions/skyportal/skyportal/tests/
+#     frontend/test_patch_grandma.py) renders the "Icare" branding
+#
+# The full SkyPortal regression suite already runs on skyportal/skyportal CI
+# against the canonical code, so re-running it here only added noise
+# (sncosmo flakes, SVO timeouts, DB cascades, etc.) without catching anything
+# the upstream CI doesn't. If you ever want the full sweep, the legacy
+# workflow at test_api_and_frontend.yaml is now manual-trigger only.
+#
+# Mirrors the structure of fritz-marshal/fritz's integration-tests job, which
+# also scopes to its own extension tests instead of re-running upstream's.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  FRONTEND_TEST_HEADLESS: "1"
+
+jobs:
+  icare-extensions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: skyportal
+          POSTGRES_PASSWORD: anything
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22.x"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Fetch submodules
+        run: git submodule update --init --recursive
+
+      - uses: browser-actions/setup-geckodriver@latest
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+
+      # sncosmo bandpass cache — see SkyPortal's cache-dependencies action.
+      # Restored between runs so the warm-up step below stays cheap.
+      - uses: actions/cache@v5
+        with:
+          path: ~/.astropy/cache/sncosmo/bandpasses
+          key: ${{ runner.os }}-sncosmo-${{ hashFiles('skyportal/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-sncosmo-
+
+      # Dustmap (SFD) cache — same pattern. Without this, skyportal/models/
+      # obj.py triggers a ~128 MB dustmaps.sfd.fetch() at import time, which
+      # blocks tornado workers long enough that test_frontend's 180 s
+      # verify_server_availability poll gives up with HTTP 503.
+      - uses: actions/cache@v5
+        with:
+          path: patched_skyportal/persistentdata/dustmap/sfd
+          key: ${{ runner.os }}-dustmap-${{ hashFiles('skyportal/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-dustmap-
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update -y
+          sudo snap remove firefox
+          sudo add-apt-repository ppa:mozillateam/ppa
+          printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001' \
+            | sudo tee /etc/apt/preferences.d/mozilla-firefox
+          sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev nginx
+          sudo npm -g install npm@latest
+          firefox --version
+
+      - name: Install Python dependencies
+        run: uv sync
+
+      - name: Apply icare patches
+        run: ./icare.sh build --skip_services_check
+
+      - name: Install patched SkyPortal Python dependencies
+        run: |
+          cd patched_skyportal && uv sync --group dev
+          echo "${{ github.workspace }}/patched_skyportal/.venv/bin" >> $GITHUB_PATH
+
+      - name: Write SkyPortal configs
+        run: |
+          cd skyportal
+          cat << EOF > config.yaml
+            database:
+              database: skyportal
+              host: localhost
+              port: 5432
+              user: skyportal
+              password: anything
+          EOF
+          cat << EOF > config.default.yaml
+            database:
+              database: skyportal
+              host: localhost
+              port: 5432
+              user: skyportal
+              password: anything
+          EOF
+          cat << EOF > test_config.yaml
+            database:
+              database: skyportal_test
+              user: skyportal
+              host: localhost
+              port: 5432
+              password: anything
+
+            server:
+              auth:
+                debug_login: True
+          EOF
+
+      - name: Initialize SkyPortal
+        run: |
+          echo "localhost:5432:*:skyportal:anything" > ~/.pgpass
+          chmod 600 ~/.pgpass
+          createdb -h localhost -U skyportal skyportal_test
+          psql -U skyportal -h localhost -c \
+            "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+          ./icare.sh build --init --skip_services_check
+
+      - name: Patch Notifications.jsx for a longer display
+        run: |
+          cd patched_skyportal
+          sed -i 's/duration = 3000/duration = 15000/g' baselayer/static/js/components/Notifications.jsx
+
+      - name: Refresh SkyPortal dependencies for tested version
+        run: |
+          cd patched_skyportal
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+          make dependencies
+
+      - name: Pre-warm sncosmo bandpass cache
+        # Cold-cache app start would lazy-fetch ~20 missing bandpasses, each
+        # blocking ~10s on astropy's urlopen (the SVO host is flaky). The
+        # warm script retries up to 5x to absorb the rotating-cast failures.
+        # `|| true` so even a partial warm doesn't fail the step.
+        run: |
+          cd patched_skyportal
+          PYTHONPATH=. python tools/warm_sncosmo_cache.py || true
+
+      - name: Pre-fetch SFD dustmap
+        # skyportal/models/obj.py calls dustmaps.sfd.fetch() at import time
+        # if the SFD FITS files are missing — ~128 MB pulled over the network
+        # while tornado workers are trying to come up. Do it here instead, so
+        # the cache step above keeps it warm between runs and the app start
+        # is purely local I/O.
+        run: |
+          cd patched_skyportal
+          mkdir -p persistentdata/dustmap
+          PYTHONPATH=. python -c "
+          from dustmaps.config import config
+          config['data_dir'] = 'persistentdata/dustmap'
+          import dustmaps.sfd, os
+          required = ['sfd/SFD_dust_4096_ngp.fits', 'sfd/SFD_dust_4096_sgp.fits']
+          if any(not os.path.isfile(os.path.join('persistentdata/dustmap', f)) for f in required):
+              dustmaps.sfd.fetch()
+          " || true
+
+      - name: Run icare-specific tests
+        # Mirrors fritz's `./fritz test` model: only run tests that live
+        # under extensions/skyportal/ and that exercise icare-specific
+        # behavior. Upstream SkyPortal's pytest suite is already covered
+        # by skyportal/skyportal CI on the same submodule SHA.
+        run: |
+          cd patched_skyportal
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml \
+            'skyportal/tests/frontend/test_patch_grandma.py'
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-icare-extensions
+          path: patched_skyportal/log
+
+      - name: Upload test post-mortem reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-icare-extensions
+          path: patched_skyportal/test-results

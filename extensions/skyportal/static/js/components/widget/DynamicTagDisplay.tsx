@@ -1,8 +1,22 @@
-import React, { useEffect, useState, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useEffect, useState, useRef } from "react";
 import { Chip, Tooltip } from "@mui/material";
-import PropTypes from "prop-types";
 import { getContrastColor } from "../ObjectTags";
+import { useAppSelector } from "../../types/hooks";
+
+interface DynamicTagDisplayProps {
+  source: { tags?: any[]; classifications?: any[] };
+  styles: Record<string, string>;
+  displayTags?: boolean;
+  taxonomyList?: any[];
+}
+
+interface ChipTag {
+  id: string | number;
+  name: string;
+  objtagoption_id?: number;
+  chipClass: string;
+  priority: number;
+}
 
 const confirmed_classes = [
   "Kilonova",
@@ -18,48 +32,41 @@ const rejected_classes = [
   "Not GW Candidate",
   "Not Supernova",
 ];
-const not_confirmed_classes = ["I-care", "Not I-care"];
-const obs_classes = [
-  "GO GRANDMA",
-  "STOP GRANDMA",
-  "GO GRANDMA (HIGH PRIORITY)",
-];
-
 const DynamicTagDisplay = ({
   source,
   styles,
   displayTags = true,
   taxonomyList = [],
-}) => {
+}: DynamicTagDisplayProps) => {
   const [visibleTagsCount, setVisibleTagsCount] = useState(2);
   const [containerWidth, setContainerWidth] = useState(0);
-  const containerRef = useRef(null);
-  const measureRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
 
-  const getGrandmaClassifications = () => {
+  const getGrandmaClassifications = (): ChipTag[] => {
     if (!source.classifications || !Array.isArray(source.classifications)) {
       return [];
     }
 
-    const classifications = [];
+    const classifications: ChipTag[] = [];
     const source_status_taxonomy = taxonomyList?.find(
-      (t) => t.name === "Grandma Campaign Source Classification",
+      (t: any) => t.name === "Grandma Campaign Source Classification",
     );
     const source_obs_taxonomy = taxonomyList?.find(
-      (t) => t.name === "Grandma Campaign Source Observation",
+      (t: any) => t.name === "Grandma Campaign Source Observation",
     );
 
     const filteredClasses = source.classifications.filter(
-      (i) => i && i.probability > 0,
+      (i: any) => i && i.probability > 0,
     );
-    const sortedClasses = filteredClasses.sort((a, b) =>
+    const sortedClasses = filteredClasses.sort((a: any, b: any) =>
       a.modified < b.modified ? 1 : -1,
     );
 
     if (sortedClasses.length > 0) {
       if (source_status_taxonomy) {
         const grandmaStatusClass = sortedClasses.find(
-          (c) => c && c.taxonomy_id === source_status_taxonomy.id,
+          (c: any) => c && c.taxonomy_id === source_status_taxonomy.id,
         );
         if (grandmaStatusClass && grandmaStatusClass.classification) {
           let chipClass = "not_confirmed";
@@ -82,10 +89,10 @@ const DynamicTagDisplay = ({
 
       if (source_obs_taxonomy) {
         const grandmaObsClass = sortedClasses.find(
-          (c) => c && c.taxonomy_id === source_obs_taxonomy.id,
+          (c: any) => c && c.taxonomy_id === source_obs_taxonomy.id,
         );
         if (grandmaObsClass && grandmaObsClass.classification) {
-          let chipClass = null;
+          let chipClass: string | null = null;
           if (
             grandmaObsClass.classification === "GO GRANDMA" ||
             grandmaObsClass.classification === "GO GRANDMA (HIGH PRIORITY)"
@@ -109,9 +116,11 @@ const DynamicTagDisplay = ({
 
     return classifications;
   };
-  const tagOptions = useSelector((state) => state.objectTags || []);
+  const tagOptions = useAppSelector(
+    (state) => (state as any).objectTags || [],
+  );
 
-  const measureTextWidth = (text) => {
+  const measureTextWidth = (text: string) => {
     if (!measureRef.current) return 0;
 
     // Temporary element to calculate the space it takes
@@ -136,7 +145,7 @@ const DynamicTagDisplay = ({
   // Calculate how many tags we can put on the container
   const calculateVisibleTags = () => {
     const grandmaClassifications = getGrandmaClassifications();
-    const tags = (source.tags || []).map((tag) => ({
+    const tags: ChipTag[] = (source.tags || []).map((tag: any) => ({
       id: tag.id,
       name: tag.name,
       objtagoption_id: tag.objtagoption_id,
@@ -144,9 +153,9 @@ const DynamicTagDisplay = ({
       priority: 3,
     }));
 
-    const allTags = [...grandmaClassifications, ...tags];
-    const uniqueTags = [];
-    const seenNames = new Set();
+    const allTags: ChipTag[] = [...grandmaClassifications, ...tags];
+    const uniqueTags: ChipTag[] = [];
+    const seenNames = new Set<string>();
 
     allTags.sort((a, b) => a.priority - b.priority);
     allTags.forEach((tag) => {
@@ -165,7 +174,7 @@ const DynamicTagDisplay = ({
     let visibleCount = 0;
 
     for (let i = 0; i < uniqueTags.length; i++) {
-      const tagWidth = measureTextWidth(uniqueTags[i].name);
+      const tagWidth = measureTextWidth(uniqueTags[i]!.name);
 
       const remainingTags = uniqueTags.length - i;
       const needsPlusChip = remainingTags > 1;
@@ -188,7 +197,7 @@ const DynamicTagDisplay = ({
     if (!containerRef.current) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         const newWidth = entry.contentRect.width;
         if (newWidth !== containerWidth) {
           setContainerWidth(newWidth);
@@ -217,7 +226,7 @@ const DynamicTagDisplay = ({
   }, []);
 
   const grandmaClassifications = getGrandmaClassifications();
-  const tags = (source.tags || []).map((tag) => ({
+  const tags: ChipTag[] = (source.tags || []).map((tag: any) => ({
     id: tag.id,
     name: tag.name,
     objtagoption_id: tag.objtagoption_id,
@@ -225,9 +234,9 @@ const DynamicTagDisplay = ({
     priority: 3,
   }));
 
-  const allTags = [...grandmaClassifications, ...tags];
-  const uniqueTags = [];
-  const seenNames = new Set();
+  const allTags: ChipTag[] = [...grandmaClassifications, ...tags];
+  const uniqueTags: ChipTag[] = [];
+  const seenNames = new Set<string>();
 
   allTags.sort((a, b) => a.priority - b.priority);
   allTags.forEach((tag) => {
@@ -245,7 +254,7 @@ const DynamicTagDisplay = ({
   const visibleTags = uniqueTags.slice(0, visibleTagsCount);
   const hiddenTags = uniqueTags.slice(visibleTagsCount);
 
-  const getChipClassName = (chipClass) => {
+  const getChipClassName = (chipClass: string) => {
     switch (chipClass) {
       case "confirmed":
         return styles.confirmed;
@@ -264,7 +273,7 @@ const DynamicTagDisplay = ({
 
   const visibleTagsWithColors = visibleTags.map((tag) => {
     const tagOption = tagOptions.find(
-      (option) => option.id === tag.objtagoption_id,
+      (option: any) => option.id === tag.objtagoption_id,
     );
     return {
       ...tag,
@@ -274,7 +283,7 @@ const DynamicTagDisplay = ({
 
   const hiddenTagsWithColors = hiddenTags.map((tag) => {
     const tagOption = tagOptions.find(
-      (option) => option.id === tag.objtagoption_id,
+      (option: any) => option.id === tag.objtagoption_id,
     );
     return {
       ...tag,
@@ -342,42 +351,6 @@ const DynamicTagDisplay = ({
       )}
     </div>
   );
-};
-
-DynamicTagDisplay.propTypes = {
-  source: PropTypes.shape({
-    tags: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number.isRequired,
-        name: PropTypes.string.isRequired,
-      }),
-    ),
-    classifications: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number.isRequired,
-        classification: PropTypes.string.isRequired,
-        taxonomy_id: PropTypes.number.isRequired,
-        probability: PropTypes.number.isRequired,
-        modified: PropTypes.string.isRequired,
-      }),
-    ),
-  }).isRequired,
-  styles: PropTypes.shape({
-    tagsContainer: PropTypes.string.isRequired,
-    tagChip: PropTypes.string.isRequired,
-    confirmed: PropTypes.string,
-    rejected: PropTypes.string,
-    not_confirmed: PropTypes.string,
-    go: PropTypes.string,
-    stop: PropTypes.string,
-  }).isRequired,
-  displayTags: PropTypes.bool.isRequired,
-    taxonomyList: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number.isRequired,
-      name: PropTypes.string.isRequired,
-    }),
-  ),
 };
 
 export default DynamicTagDisplay;
