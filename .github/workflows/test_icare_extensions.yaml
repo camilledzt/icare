@@ -181,7 +181,7 @@ jobs:
         # `|| true` so even a partial warm doesn't fail the step.
         run: |
           cd patched_skyportal
-          PYTHONPATH=. python tools/warm_sncosmo_cache.py || true
+          PYTHONPATH=. timeout 120 python tools/warm_sncosmo_cache.py || true
 
       - name: Pre-fetch SFD dustmap
         # skyportal/models/obj.py calls dustmaps.sfd.fetch() at import time

@@ -8,7 +8,7 @@ import "reactgridlayoutcss/styles.css";
 import "reactresizablecss/styles.css";
 
 import { useTheme } from "@mui/material/styles";
-import makeStyles from '@mui/styles/makeStyles';
+import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import CachedIcon from "@mui/icons-material/Cached";
 import Tooltip from "@mui/material/Tooltip";
@@ -28,7 +28,7 @@ import TelescopeMapWidget from "../widget/TelescopeMapWidget";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles()(() => ({
   widgetIcon: {
     float: "right",
     color: "gray",
@@ -65,7 +65,7 @@ const defaultLayouts = {
 }
 
 const HomePage = () => {
-  const classes = useStyles();
+  const { classes } = useStyles();
 
   // Taken from configs
   const rem = "{{ app.homepage_grid.row_height|default("9.375rem")}}";
