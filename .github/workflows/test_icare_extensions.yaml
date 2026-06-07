@@ -64,10 +64,16 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/cache@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+          bun-version-file: skyportal/package.json
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('skyportal/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       # sncosmo bandpass cache — see SkyPortal's cache-dependencies action.
       # Restored between runs so the warm-up step below stays cheap.
@@ -102,7 +108,6 @@ jobs:
           printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001' \
             | sudo tee /etc/apt/preferences.d/mozilla-firefox
           sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev nginx
-          sudo npm -g install npm@latest
           firefox --version
 
       - name: Install Python dependencies
