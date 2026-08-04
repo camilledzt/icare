@@ -61,6 +61,20 @@ def build(
 
     patch_skyportal("extensions/skyportal/", "patched_skyportal/")
 
+    # Remove stale .js files that were converted to .ts in skyportal.
+    # When patched_skyportal is populated by copying skyportal/, old .js files
+    # from a previous build are not deleted — only overwritten if still present.
+    # Any .js file no longer in the skyportal source is a leftover that conflicts
+    # with its .ts replacement at bundle time.
+    js_root = Path("patched_skyportal/static/js")
+    sp_js_root = Path("skyportal/static/js")
+    if js_root.exists() and sp_js_root.exists():
+        for js_file in js_root.rglob("*.js"):
+            rel = js_file.relative_to("patched_skyportal")
+            if not (sp_js_root.parent.parent / rel).exists():
+                print(f"Removing stale JS file: {js_file}")
+                js_file.unlink()
+
     if clear and skyportal_start:
         clear_db()
 
