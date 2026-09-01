@@ -1,0 +1,116 @@
+// eslint.config.js
+const globalsLib = require("globals");
+const eslint = require("@eslint/js");
+
+const reactPlugin = require("eslint-plugin-react");
+const prettierPlugin = require("eslint-config-prettier");
+const importPlugin = require("eslint-plugin-import");
+const reactHookPlugin = require("eslint-plugin-react-hooks");
+const airbnbPlugin = require("eslint-config-airbnb");
+const tseslint = require("typescript-eslint");
+
+const { fixupPluginRules } = require("@eslint/compat");
+
+module.exports = [
+  eslint.configs.recommended,
+  // run on all js/jsx/ts/tsx files in the extensions static directory
+  {
+    files: [
+      "extensions/skyportal/static/**/*.js",
+      "extensions/skyportal/static/**/*.jsx",
+      "extensions/skyportal/static/**/*.ts",
+      "extensions/skyportal/static/**/*.tsx",
+    ],
+  },
+  { ignores: ["docs/*"] },
+  {
+    // CommonJS config files at repo root use Node globals
+    files: ["*.config.js", "*.config.cjs"],
+    languageOptions: {
+      globals: {
+        ...globalsLib.node,
+      },
+      sourceType: "commonjs",
+    },
+  },
+  {
+    languageOptions: {
+      globals: {
+        ...globalsLib.browser,
+      },
+    },
+  },
+  {
+    plugins: {
+      import: importPlugin,
+      react: reactPlugin,
+      "react-hooks": fixupPluginRules(reactHookPlugin),
+      airbnb: airbnbPlugin,
+      prettier: prettierPlugin,
+    },
+  },
+  {
+    rules: {
+      ...reactHookPlugin.configs.recommended.rules,
+      ...reactPlugin.configs.recommended.rules,
+      ...prettierPlugin.rules,
+      "react/react-in-jsx-scope": "off",
+      "react/jsx-uses-react": "off",
+      camelcase: "off",
+      "no-unused-vars": "off",
+      "no-unsafe-optional-chaining": "off",
+      "no-useless-escape": "off",
+      "no-constant-binary-expression": "warn",
+      "no-await-in-loop": "warn",
+      "jsx-a11y/click-events-have-key-events": 0,
+      "jsx-a11y/label-has-associated-control": 0,
+      "jsx-a11y/control-has-associated-label": 0,
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/set-state-in-effect": "off",
+      "react/jsx-wrap-multilines": 0,
+      "react/jsx-one-expression-per-line": 0,
+      "react/jsx-props-no-spreading": 0,
+      "react/jsx-curly-newline": 0,
+      "react/forbid-prop-types": "warn",
+      "react/destructuring-assignment": 0,
+      "prefer-template": "warn",
+      "no-param-reassign": 0,
+      "react/jsx-no-bind": 0,
+      "no-shadow": "error",
+    },
+  },
+  {
+    // TypeScript files: use the typescript-eslint parser
+    files: [
+      "extensions/skyportal/static/**/*.ts",
+      "extensions/skyportal/static/**/*.tsx",
+    ],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+        sourceType: "module",
+      },
+      globals: {
+        ...globalsLib.browser,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+    },
+    rules: {
+      "no-undef": "off",
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "no-use-before-define": "off",
+    },
+  },
+  {
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
+  },
+];
