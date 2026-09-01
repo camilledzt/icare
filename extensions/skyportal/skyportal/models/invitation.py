@@ -1,6 +1,7 @@
 __all__ = ["Invitation"]
 
 import sqlalchemy as sa
+from baselayer.app.auth_backends import default_auth_backend
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import AccessibleIfUserMatches, Base
@@ -46,6 +47,7 @@ class Invitation(Base):
     )
     admin_for_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
     can_save_to_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
+    can_share_photometry_for_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
     user_email = sa.Column(EmailType(), nullable=True)
     invited_by = relationship(
         "User",
@@ -62,7 +64,9 @@ class Invitation(Base):
 @event.listens_for(Invitation, "after_insert")
 def send_user_invite_email(mapper, connection, target):
     app_base_url = get_app_base_url()
-    link_location = f"{app_base_url}/login/google-oauth2/?invite_token={target.token}"
+    link_location = (
+        f"{app_base_url}/login/{default_auth_backend()}/?invite_token={target.token}"
+    )
     if cfg.get("invitations.disable_emailing", False) is True:
         # If email sending is disabled, log the invite link for testing purposes
         log(
