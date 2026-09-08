@@ -339,6 +339,13 @@ server:
 services:
   dask: False
 
+brokers:
+  # Run the in-core ingestion service (services/broker_ingest): for each active
+  # broker whose provider implements run_ingestion, consume its stream and ingest
+  # alerts via the shared save transform. Off by default; interactive access
+  # (the /brokers/{id} page) works regardless of this setting.
+  ingest_enabled: True
+
 notifications:
   enabled: True
 
